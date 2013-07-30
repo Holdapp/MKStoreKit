@@ -91,7 +91,7 @@
     
     NSString *purchasedDateString = [[self.verifiedReceiptDictionary objectForKey:@"receipt"] objectForKey:@"purchase_date"];        
     if(!purchasedDateString) {
-      NSLog(@"Receipt Dictionary from Apple Server is invalid: %@", self.verifiedReceiptDictionary);
+      DLog(@"Receipt Dictionary from Apple Server is invalid: %@", self.verifiedReceiptDictionary);
       return NO;
     }
     NSDateFormatter *df = [[NSDateFormatter alloc] init];

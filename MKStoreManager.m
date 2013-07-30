@@ -51,6 +51,7 @@
 @interface MKStoreManager () //private methods and properties
 
 @property (nonatomic, copy) void (^onTransactionCancelled)();
+@property (nonatomic, copy) void (^onTransactionFailed)(NSError* error);
 @property (nonatomic, copy) void (^onTransactionCompleted)(NSString *productId, NSData* receiptData, NSArray* downloads);
 
 @property (nonatomic, copy) void (^onRestoreFailed)(NSError* error);
@@ -72,7 +73,7 @@ static MKStoreManager* _sharedStoreManager;
 
 +(void) updateFromiCloud:(NSNotification*) notificationObject {
   
-  NSLog(@"Updating from iCloud");
+  DLog(@"Updating from iCloud");
   
   NSUbiquitousKeyValueStore *iCloudStore = [NSUbiquitousKeyValueStore defaultStore];
   NSDictionary *dict = [iCloudStore dictionaryRepresentation];
@@ -89,22 +90,27 @@ static MKStoreManager* _sharedStoreManager;
                         forServiceName:@"MKStoreKit"
                         updateExisting:YES
                                  error:&error];
-      if(error) NSLog(@"%@", error);
+      if(error) ALog(@"%@", error);
     }
   }];
 }
 
 +(BOOL) iCloudAvailable {
-  
-  if(NSClassFromString(@"NSUbiquitousKeyValueStore")) { // is iOS 5?
-    
-    if([NSUbiquitousKeyValueStore defaultStore]) {  // is iCloud enabled
-      
-      return YES;
+    if(kInAppiCloudEnabled) {
+        if(NSClassFromString(@"NSUbiquitousKeyValueStore")) { // is iOS 5?
+            
+            if([NSUbiquitousKeyValueStore defaultStore]) {  // is iCloud enabled
+                
+                return YES;
+            }
+        }
+        
+        return NO;
+
     }
-  }
-  
-  return NO;
+    else {
+        return NO;
+    }
 }
 
 +(void) setObject:(id) object forKey:(NSString*) key
@@ -122,7 +128,7 @@ static MKStoreManager* _sharedStoreManager;
     
     NSError *error = nil;
     [SFHFKeychainUtils storeUsername:key andPassword:objectString forServiceName:@"MKStoreKit" updateExisting:YES error:&error];
-    if(error) NSLog(@"%@", error);
+    if(error) ALog(@"%@", error);
     
     if([self iCloudAvailable]) {
       [[NSUbiquitousKeyValueStore defaultStore] setObject:objectString forKey:key];
@@ -132,7 +138,7 @@ static MKStoreManager* _sharedStoreManager;
     
     NSError *error = nil;
     [SFHFKeychainUtils deleteItemForUsername:key andServiceName:@"MKStoreKit" error:&error];
-    if(error) NSLog(@"%@", error);
+    if(error) ALog(@"%@", error);
     
     if([self iCloudAvailable]) {
       [[NSUbiquitousKeyValueStore defaultStore] removeObjectForKey:key];
@@ -154,7 +160,7 @@ static MKStoreManager* _sharedStoreManager;
 {
   NSError *error = nil;
   id password = [SFHFKeychainUtils getPasswordForUsername:key andServiceName:@"MKStoreKit" error:&error];
-  if(error) NSLog(@"%@", error);
+  if(error) ALog(@"%@", error);
   
   return password;
 }
@@ -293,7 +299,11 @@ static MKStoreManager* _sharedStoreManager;
 
 - (void)productsRequest:(SKProductsRequest *)request didReceiveResponse:(SKProductsResponse *)response
 {
-	[self.purchasableObjects addObjectsFromArray:response.products];
+    
+    self.isProductsAvailable = (self.purchasableObjects.count > 0);
+    
+	if (!self.isProductsAvailable)
+        [self.purchasableObjects addObjectsFromArray:response.products];
 	
 #ifndef NDEBUG
 	for(int i=0;i<[self.purchasableObjects count];i++)
@@ -307,7 +317,7 @@ static MKStoreManager* _sharedStoreManager;
 		NSLog(@"Problem in iTunes connect configuration for product: %@", invalidProduct);
 #endif
   
-	self.isProductsAvailable = YES;
+	
   [[NSNotificationCenter defaultCenter] postNotificationName:kProductFetchedNotification
                                                       object:[NSNumber numberWithBool:self.isProductsAvailable]];
 	self.productsRequest = nil;
@@ -408,6 +418,10 @@ static MKStoreManager* _sharedStoreManager;
   return priceDict;
 }
 
+- (NSString *)priceForProductID:(NSString *)productID {
+    return [[self pricesDictionary] objectForKey:productID];
+}
+
 -(void) showAlertWithTitle:(NSString*) title message:(NSString*) message {
   
 #if TARGET_OS_IPHONE
@@ -431,11 +445,21 @@ static MKStoreManager* _sharedStoreManager;
 }
 
 - (void) buyFeature:(NSString*) featureId
-         onComplete:(void (^)(NSString*, NSData*, NSArray*)) completionBlock
+         onComplete:(void (^)(NSString* purchasedFeature, NSData*purchasedReceipt, NSArray* availableDownloads)) completionBlock
+           onFailed:(void (^)(NSError *error)) failBlock
         onCancelled:(void (^)(void)) cancelBlock
 {
   self.onTransactionCompleted = completionBlock;
   self.onTransactionCancelled = cancelBlock;
+  self.onTransactionFailed = failBlock;
+    
+    if([MKStoreManager sharedManager].pricesDictionary.count <= 0) {
+        [self reloadProducts];
+        self.onTransactionFailed([NSError errorWithDomain:@"MKStoreKit"
+                                                     code:99
+                                                 userInfo:[NSDictionary dictionaryWithObject:NSLocalizedString(@"App store not avaiable", nil) forKey:NSLocalizedDescriptionKey]]);
+        return;
+    }
   
   [MKSKProduct verifyProductForReviewAccess:featureId
                                  onComplete:^(NSNumber * isAllowed)
@@ -456,9 +480,13 @@ static MKStoreManager* _sharedStoreManager;
    }
                                     onError:^(NSError* error)
    {
-     NSLog(@"Review request cannot be checked now: %@", [error description]);
+     ALog(@"Review request cannot be checked now: %@", [error description]);
      [self addToQueue:featureId];
    }];
+}
+
+- (void)reloadProducts {
+    [self requestProductData];
 }
 
 -(void) addToQueue:(NSString*) productId
@@ -476,7 +504,7 @@ static MKStoreManager* _sharedStoreManager;
 	}
 	else
 	{
-    [self showAlertWithTitle:NSLocalizedString(@"In-App Purchasing disabled", @"")
+    [self showAlertWithTitle:NSLocalizedString(@"error", @"")
                      message:NSLocalizedString(@"Check your parental control settings and try again later", @"")];
 	}
 }
@@ -529,19 +557,19 @@ static MKStoreManager* _sharedStoreManager;
            [[NSNotificationCenter defaultCenter] postNotificationName:kSubscriptionsInvalidNotification
                                                                object:product.productId];
            
-           NSLog(@"Subscription: %@ is inactive", product.productId);
+           ALog(@"Subscription: %@ is inactive", product.productId);
            product.receipt = nil;
            [self.subscriptionProducts setObject:product forKey:productId];
            [MKStoreManager setObject:nil forKey:product.productId];
          }
          else
          {
-           NSLog(@"Subscription: %@ is active", product.productId);
+           ALog(@"Subscription: %@ is active", product.productId);
          }
        }
                                onError:^(NSError* error)
        {
-         NSLog(@"Unable to check for subscription validity right now");
+         ALog(@"Unable to check for subscription validity right now");
        }];
     }
     
@@ -623,7 +651,7 @@ static MKStoreManager* _sharedStoreManager;
      }
                                          onError:^(NSError* error)
      {
-       NSLog(@"%@", [error description]);
+       ALog(@"%@", [error description]);
      }];
   }
   else
@@ -640,7 +668,7 @@ static MKStoreManager* _sharedStoreManager;
         }
         else
         {
-          NSLog(@"Receipt invalid");
+          ALog(@"Receipt invalid");
         }
       }
     }
@@ -666,7 +694,7 @@ static MKStoreManager* _sharedStoreManager;
          }
          else
          {
-           NSLog(@"The receipt could not be verified");
+           ALog(@"The receipt could not be verified");
          }
        }];
     }
@@ -754,8 +782,16 @@ static MKStoreManager* _sharedStoreManager;
 	
   [[SKPaymentQueue defaultQueue] finishTransaction: transaction];
   
-  if(self.onTransactionCancelled)
-    self.onTransactionCancelled();
+    if(transaction.error.code != SKErrorPaymentCancelled && transaction.error.code != SKErrorPaymentNotAllowed) {
+        if(self.onTransactionFailed) {
+            self.onTransactionFailed(transaction.error);
+        }
+    }
+    else {
+        if(self.onTransactionCancelled) {
+            self.onTransactionCancelled();
+        }
+    }
 }
 
 - (void) completeTransaction: (SKPaymentTransaction *)transaction

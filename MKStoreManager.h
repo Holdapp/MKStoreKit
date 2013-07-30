@@ -66,12 +66,16 @@
 // convenience methods
 //returns a dictionary with all prices for identifiers
 - (NSMutableDictionary *)pricesDictionary;
+- (NSString *)priceForProductID:(NSString *)productID;
 - (NSMutableArray*) purchasableObjectsDescription;
 
 // use this method to start a purchase
 - (void) buyFeature:(NSString*) featureId
          onComplete:(void (^)(NSString* purchasedFeature, NSData*purchasedReceipt, NSArray* availableDownloads)) completionBlock
+           onFailed:(void (^)(NSError *error)) failBlock
         onCancelled:(void (^)(void)) cancelBlock;
+
+- (void)reloadProducts;
 
 // use this method to restore a purchase
 - (void) restorePreviousTransactionsOnComplete:(void (^)(void)) completionBlock

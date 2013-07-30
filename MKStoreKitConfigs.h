@@ -8,7 +8,7 @@
 
 //  Created by Mugunth Kumar (@mugunthkumar) on 04/07/11.
 //  Copyright (C) 2011-2020 by Steinlogic Consulting And Training Pte Ltd.
-
+//
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
 //  in the Software without restriction, including without limitation the rights
@@ -53,7 +53,7 @@
     #define REVIEW_ALLOWED 0
 #endif
 
-#warning Shared Secret Missing Ignore this warning if you don't use auto-renewable subscriptions
+//#warning Shared Secret Missing Ignore this warning if you don't use auto-renewable subscriptions
 #ifndef kSharedSecret
     #define kSharedSecret @"<FILL IN YOUR SHARED SECRET HERE>"
 #endif
