@@ -49,6 +49,8 @@
 #define kSubscriptionsPurchasedNotification @"MKStoreKitSubscriptionsPurchased"
 #define kSubscriptionsInvalidNotification @"MKStoreKitSubscriptionsInvalid"
 
+#define kInAppiCloudEnabled NO
+
 @interface MKStoreManager : NSObject<SKProductsRequestDelegate, SKPaymentTransactionObserver>
 
 // These are the methods you will be using in your app

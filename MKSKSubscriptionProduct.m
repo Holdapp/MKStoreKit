@@ -40,6 +40,12 @@
 #error "MKStoreKit uses features (NSJSONSerialization) only available in iOS SDK  and later."
 #endif
 
+#ifdef DEBUG
+#   define DLog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
+#else
+#   define DLog(...)
+#endif
+
 @implementation MKSKSubscriptionProduct
 
 -(id) initWithProductId:(NSString*) aProductId subscriptionDays:(int) days

@@ -57,6 +57,8 @@
 #define ALog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 
+
+
 @interface MKStoreManager () //private methods and properties
 
 @property (nonatomic, copy) void (^onTransactionCancelled)();
