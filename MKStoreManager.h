@@ -37,6 +37,8 @@
 #import <StoreKit/StoreKit.h>
 #import "MKStoreKitConfigs.h"
 
+typedef void(^RestoreCompleted)(NSDictionary *restoredTransactions); //array of dictionaries key=productID, value=storeReceiptData
+
 #define kReceiptStringKey @"MK_STOREKIT_RECEIPTS_STRING"
 
 #ifndef NDEBUG
@@ -80,8 +82,8 @@
 - (void)reloadProducts;
 
 // use this method to restore a purchase
-- (void) restorePreviousTransactionsOnComplete:(void (^)(void)) completionBlock
-                                       onError:(void (^)(NSError* error)) errorBlock;
+- (void) restorePreviousTransactionsOnComplete:(RestoreCompleted) completionBlock
+                                       onError:(void (^)(NSError*)) errorBlock;
 
 // For consumable support
 - (BOOL) canConsumeProduct:(NSString*) productName quantity:(int) quantity;
