@@ -220,6 +220,8 @@ static MKStoreManager* _sharedStoreManager;
                                                        object:nil];
         
         
+        
+        
     }
     return _sharedStoreManager;
 }
