@@ -252,15 +252,15 @@ static MKStoreManager* _sharedStoreManager;
     }
     if(self.onRestoreCompleted)
         self.onRestoreCompleted(dict);
+    [self releaseRestoreBlocks];
     
-    self.onRestoreCompleted = nil;
 }
 
 -(void) restoreFailedWithError:(NSError*) error
 {
     if(self.onRestoreFailed)
         self.onRestoreFailed(error);
-    self.onRestoreFailed = nil;
+    [self releaseRestoreBlocks];
 }
 
 -(void) requestProductData
@@ -487,6 +487,7 @@ static MKStoreManager* _sharedStoreManager;
         self.onTransactionFailed([NSError errorWithDomain:@"MKStoreKit"
                                                      code:99
                                                  userInfo:[NSDictionary dictionaryWithObject:NSLocalizedString(@"App store not avaiable", nil) forKey:NSLocalizedDescriptionKey]]);
+        [self releaseTransactionBlocks];
         return;
     }
     
@@ -500,6 +501,7 @@ static MKStoreManager* _sharedStoreManager;
              
              if(self.onTransactionCompleted)
                  self.onTransactionCompleted(featureId, nil, nil);
+             [self releaseTransactionBlocks];
          }
          else
          {
@@ -684,6 +686,7 @@ static MKStoreManager* _sharedStoreManager;
              [MKStoreManager setObject:receiptData forKey:productIdentifier];
              if(self.onTransactionCompleted)
                  self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+             [self releaseTransactionBlocks];
          }
                                              onError:^(NSError* error)
          {
@@ -707,6 +710,7 @@ static MKStoreManager* _sharedStoreManager;
                     ALog(@"Receipt invalid");
                 }
             }
+            [self releaseTransactionBlocks];
         }
         
         if(OWN_SERVER && SERVER_PRODUCT_MODEL)
@@ -721,6 +725,7 @@ static MKStoreManager* _sharedStoreManager;
                  [self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
                  if(self.onTransactionCompleted)
                      self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+                 [self releaseTransactionBlocks];
              }
                                          onError:^(NSError* error)
              {
@@ -732,13 +737,16 @@ static MKStoreManager* _sharedStoreManager;
                  {
                      ALog(@"The receipt could not be verified");
                  }
+                 [self releaseTransactionBlocks];
              }];
         }
         else
         {
+
             [self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
             if(self.onTransactionCompleted)
                 self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+            [self releaseTransactionBlocks];
         }
     }
 }
@@ -828,6 +836,7 @@ static MKStoreManager* _sharedStoreManager;
             self.onTransactionCancelled();
         }
     }
+    [self releaseTransactionBlocks];
 }
 
 - (void) completeTransaction: (SKPaymentTransaction *)transaction
@@ -914,5 +923,16 @@ static MKStoreManager* _sharedStoreManager;
     [self hostedContentDownloadStatusChanged:downloads];
 }
 #endif
+
+- (void)releaseRestoreBlocks {
+    self.onRestoreCompleted = nil;
+    self.onRestoreFailed = nil;
+}
+
+- (void)releaseTransactionBlocks {
+    self.onTransactionCancelled = nil;
+    self.onTransactionCompleted = nil;
+    self.onTransactionFailed = nil;
+}
 
 @end
