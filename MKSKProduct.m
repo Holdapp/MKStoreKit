@@ -1,5 +1,5 @@
 //
-//  MKSKProduct.m
+//  fixed warnings
 //  MKStoreKit (Version 5.0)
 //
 //  Created by Mugunth Kumar (@mugunthkumar) on 04/07/11.
